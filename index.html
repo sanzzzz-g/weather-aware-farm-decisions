@@ -1,0 +1,835 @@
+<title>Paddy Advisory Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column of instrument panels. A score panel leads, evidence panels follow, a farm explorer closes. */
+:root {
+  --bg: #edf2ee;
+  --surface: #f8fbf8;
+  --surface-2: #e3ebe5;
+  --ink: #14302a;
+  --muted: #566b62;
+  --line: #cbd9cf;
+  --accent: #1f7a4d;
+  --accent-ink: #ffffff;
+  --water: #2a6f97;
+  --warn: #a56a0f;
+  --bad: #b3402f;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1916; --surface: #13231e; --surface-2: #1b2f28; --ink: #e3eee7; --muted: #8fa89c;
+    --line: #26392f; --accent: #4cc38a; --accent-ink: #072015; --water: #6db5da; --warn: #e2b24d; --bad: #e8836f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1916; --surface: #13231e; --surface-2: #1b2f28; --ink: #e3eee7; --muted: #8fa89c;
+  --line: #26392f; --accent: #4cc38a; --accent-ink: #072015; --water: #6db5da; --warn: #e2b24d; --bad: #e8836f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; line-height: 1.15; }
+h2 { font-size: 20px; font-weight: 700; }
+h3 { font-size: 15px; font-weight: 700; }
+p { margin: 0; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.label { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { width: 30px; height: 30px; color: var(--accent); flex: none; }
+.brand b { font-family: var(--font-display); font-size: 22px; letter-spacing: -.01em; }
+.tag { font-family: var(--font-mono); font-size: 12px; color: var(--warn); border: 1px solid var(--warn); padding: 3px 9px; border-radius: 3px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel > .head { display: flex; flex-direction: column; gap: 4px; }
+.row { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 760px) { .row { grid-template-columns: minmax(0, 1fr); } }
+
+/* score panel */
+.score { display: grid; gap: 24px; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 760px) { .score { grid-template-columns: minmax(0, 1fr); } }
+.bignum { display: flex; align-items: baseline; gap: 8px; }
+.bignum .n { font-family: var(--font-display); font-weight: 700; font-size: 84px; line-height: .95; letter-spacing: -.03em; }
+.bignum .of { font-family: var(--font-mono); color: var(--muted); font-size: 18px; }
+.grade { display: inline-block; font-weight: 600; font-size: 13px; padding: 3px 10px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); }
+.grade.mid { background: var(--warn); color: var(--bg); }
+.grade.low { background: var(--bad); color: var(--bg); }
+.parts { display: flex; flex-direction: column; gap: 12px; }
+.part .top { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.part .top span:last-child { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.track { height: 8px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.track > i { display: block; height: 100%; background: var(--accent); }
+.part .why { font-size: 12.5px; color: var(--muted); }
+.headline { border-left: 3px solid var(--water); padding: 2px 0 2px 12px; font-size: 14.5px; }
+
+/* controls */
+.controls { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: end; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.field label b { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+select, input[type=number] {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; min-width: 0; width: 100%;
+}
+input[type=range] { width: 100%; accent-color: var(--accent); }
+button {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 4px; padding: 9px 16px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--accent-ink);
+}
+button.ghost { background: transparent; color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--water); outline-offset: 2px; }
+
+/* tables */
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.num, th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.best td { background: var(--surface-2); }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--line); white-space: nowrap; }
+.pill.ok { color: var(--accent); border-color: var(--accent); }
+.pill.no { color: var(--bad); border-color: var(--bad); }
+.pill.dom { color: var(--muted); }
+
+/* bars */
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar .top { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.bar .track { height: 12px; margin-top: 4px; }
+.bar.ref .track > i { background: var(--muted); }
+.bar.win .track > i { background: var(--accent); }
+.bar.lose .track > i { background: var(--water); }
+.stack { display: flex; height: 22px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
+.stack > i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; background: var(--c); }
+
+/* svg */
+svg.chart { width: 100%; max-width: 380px; height: auto; display: block; }
+.ax { stroke: var(--line); stroke-width: 1; fill: none; }
+.dg { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; fill: none; }
+.ln { stroke: var(--accent); stroke-width: 2; fill: none; }
+.pt { fill: var(--accent); }
+.tx { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+
+/* explorer */
+.explorer { display: grid; gap: 20px; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 860px) { .explorer { grid-template-columns: minmax(0, 1fr); } }
+.sliders { display: flex; flex-direction: column; gap: 12px; }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.presets button { padding: 6px 12px; font-size: 13px; }
+.verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); }
+.verdict .v { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+.v.ACT { color: var(--accent); } .v.WAIT { color: var(--warn); } .v.CANNOT { color: var(--bad); }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+
+ul.tests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+ul.tests li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
+pre.json { margin: 0; max-height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 12px; font-family: var(--font-mono); font-size: 12px; }
+@media (prefers-reduced-motion: no-preference) { .track > i, .stack > i { transition: width .4s ease; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 29V10"/><path d="M16 10c0-4 2-6 5-7 0 4-1 6-5 7z"/><path d="M16 15c0-3-2-5-5-5 0 3 1 5 5 5z"/><path d="M16 20c0-3 2-5 5-5 0 3-1 5-5 5z"/><path d="M16 25c0-3-2-5-5-5 0 3 1 5 5 5z"/></svg>
+      <b>Paddy Advisory Lab</b>
+    </div>
+    <span class="tag">Prototype · synthetic farms</span>
+  </header>
+
+  <section class="panel">
+    <div class="head">
+      <span class="label">Reliability of the resource-aware method</span>
+      <h2>Weather advisory decisions for smallholder rice farms</h2>
+    </div>
+    <div class="score">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="bignum"><span class="n mono" id="score">0</span><span class="of">/ 100</span></div>
+        <div><span class="grade" id="grade">-</span></div>
+        <p class="small muted" id="scoreNote"></p>
+      </div>
+      <div class="parts" id="parts"></div>
+    </div>
+    <p class="headline" id="headline"></p>
+  </section>
+
+  <section class="panel">
+    <div class="head"><h2>Run the experiment</h2><p class="small muted">Each run draws new synthetic farms and weather events from the seed, then scores all three methods on the same cases.</p></div>
+    <div class="controls">
+      <div class="field"><label for="nFarms">Farms</label>
+        <select id="nFarms"><option>200</option><option>500</option><option selected>1000</option><option>2000</option><option>5000</option></select></div>
+      <div class="field"><label for="seed">Random seed</label><input id="seed" type="number" value="42" min="1" max="999999"></div>
+      <div class="field"><label for="wB">Weight: expected benefit <b id="wBv"></b></label><input id="wB" type="range" min="0" max="100" value="50"></div>
+      <div class="field"><label for="wR">Weight: resource load <b id="wRv"></b></label><input id="wR" type="range" min="0" max="100" value="20"></div>
+      <div class="field"><label for="wK">Weight: weather risk <b id="wKv"></b></label><input id="wK" type="range" min="0" max="100" value="30"></div>
+      <div class="field"><button id="run" type="button">Run simulation</button></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="head"><h2>Method comparison</h2><p class="small muted">Same farms, same weather. Cost is realised crop loss plus action cost, in rupees per farm.</p></div>
+    <div class="row">
+      <div class="bars" id="costBars"></div>
+      <div class="scroll"><table id="cmpTable"></table></div>
+    </div>
+    <p class="small muted" id="cmpNote"></p>
+  </section>
+
+  <div class="row">
+    <section class="panel">
+      <div class="head"><h2>What the framework decided</h2><p class="small muted">A verdict is CANNOT ACT when the action with the best expected benefit is infeasible for that farm.</p></div>
+      <div class="stack" id="stack"></div>
+      <div class="legend" id="legend"></div>
+      <p class="small" id="altText"></p>
+    </section>
+    <section class="panel">
+      <div class="head"><h2>Forecast calibration</h2><p class="small muted">Forecast probability against how often rain occurred. These forecasts are synthetic.</p></div>
+      <div id="calib"></div>
+      <p class="small mono" id="calibNums"></p>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="head"><h2>Try one farm</h2><p class="small muted">Change the farm and the forecast. The table shows every action, ranked by the resource-aware method.</p></div>
+    <div class="presets" id="presets"></div>
+    <div class="explorer">
+      <div class="sliders" id="sliders"></div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="verdict" id="verdict"></div>
+        <div class="scroll"><table id="actTable"></table></div>
+        <p class="small muted">Net benefit is the rain loss avoided minus the action cost, in expectation. Resource load is the share of the farm's own labour and cash the action uses. Risk is the loss if the rain arrives after the action.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="row">
+    <section class="panel">
+      <div class="head"><h2>Proof of work: unit tests</h2><p class="small muted">Run in your browser when the page loads. The first three reproduce the worked examples from the concept note.</p></div>
+      <ul class="tests" id="tests"></ul>
+    </section>
+    <section class="panel">
+      <div class="head"><h2>Assumptions and export</h2><p class="small muted">Every value below is an editable assumption in <span class="mono">engine.js</span>. None is a measured farm value.</p></div>
+      <div class="scroll" style="max-height:230px;overflow:auto"><table id="assume"></table></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="ghost" id="copyJson" type="button">Copy results as JSON</button><span class="small muted" id="copyMsg"></span></div>
+      <pre class="json" id="json"></pre>
+    </section>
+  </div>
+</div>
+
+<script>
+/*
+ * Resource-aware weather advisory engine (scenario-based prototype)
+ * ------------------------------------------------------------------
+ * Compares three decision methods on the same synthetic farms and weather events:
+ *   A) generic advisory      (warning -> standard action)
+ *   B) cost-loss rule        (Murphy 1977 style: act if p > C/L; no farm feasibility)
+ *   C) resource-aware ranking(feasibility + ranking by benefit, resources, risk)
+ * All farm data is synthetic. Every number in ASSUME is an editable assumption,
+ * not a measured value. Replace genFarm() with real survey / forecast data later.
+ */
+(function (root) {
+  'use strict';
+
+  const ASSUME = {
+    wage: 50,                 // INR per person-hour (about INR 400 / day)
+    hireWagePremium: 1.3,     // hired labour costs 30% more at short notice
+    manualPH: 120,            // person-hours per ha, manual harvest + bundling
+    combineCostHa: 2500,      // INR per ha, custom-hired combine
+    combineHoursHa: 3,        // machine hours per ha
+    combineLabourHa: 15,      // person-hours per ha still needed with a machine
+    yieldKgHa: 4000,
+    priceKg: 23,              // INR per kg paddy
+    matureAt: 0.85,           // maturity index at which harvest is agronomically valid
+    earlyHarvestPenalty: 0.25,// share of crop value lost if harvested immature
+    immatureRainLoss: 0.04,   // share of crop value lost to rain on an immature standing crop
+    drainReduction: 0.20,     // share of rain loss avoided by draining and bunding
+    drainCostHa: 600,
+    drainPH: 12,              // person-hours per ha
+    waitBuffer: 12,           // hours that must remain after the wait for the follow-up action
+    waitHit: 0.70,            // chance a sharper forecast signals a real event
+    waitFalseAlarm: 0.10,
+    failShare: 0.25,          // share of action cost wasted if an infeasible action is attempted
+    genericThreshold: 0.40,   // generic advisory warns at forecast probability >= 40%
+    lossScale: 1,
+    costScale: 1,
+  };
+
+  const ACTION_NAMES = {
+    harvest: 'Harvest now',
+    partial: 'Partial harvest',
+    hire: 'Hire extra labour, then harvest',
+    protect: 'Drain field and reinforce bunds',
+    wait: 'Wait for a sharper forecast',
+    nothing: 'Do nothing',
+  };
+
+  const DEFAULT_WEIGHTS = { benefit: 0.5, resource: 0.2, risk: 0.3 };
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function normal(r) {
+    let u = 0; while (u === 0) u = r();
+    const v = r();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+
+  /* ---------- decision-theory helpers (Murphy 1977 cost-loss) ---------- */
+  function costLossNet(p, lossAvoided, cost) {
+    return { expectedAvoided: p * lossAvoided, net: p * lossAvoided - cost };
+  }
+
+  /* ---------- synthetic farm generator ---------- */
+  function genFarm(r, A, id) {
+    const area = clamp(Math.exp(normal(r) * 0.5 + Math.log(0.9)), 0.3, 3);
+    const lead = 24 + r() * 72;
+    const cu = r();
+    const crew = cu < 0.2 ? 1 : cu < 0.55 ? 2 : cu < 0.8 ? 3 : cu < 0.92 ? 4 : 5;
+    const labour = crew * lead * 0.5 * (0.6 + 0.4 * r());
+    const hireable = r() * 1.2 * A.manualPH * area;
+    const machine = r() < 0.45;
+    const machineWait = 6 + r() * 54;
+    const cash = clamp(Math.exp(normal(r) * 0.8 + Math.log(9000)), 1500, 80000);
+    const isMature = r() < 0.65;
+    const maturity = isMature ? 0.88 + r() * 0.12 : 0.6 + r() * 0.25;
+    const lossFrac = 0.10 + r() * 0.20;
+    const pF = clamp(0.05 + 0.85 * Math.pow(r(), 1.5), 0.02, 0.95);
+    const pT = clamp(0.9 * pF + 0.03 + normal(r) * 0.06, 0.01, 0.99);
+    const event = r() < pT;
+    const u1 = r(), u2 = r();
+    return { id, area, lead, crew, labour, hireable, machine, machineWait, cash,
+             maturity, lossFrac, pF, pT, event, u1, u2 };
+  }
+
+  /* ---------- action evaluation for one farm ---------- */
+  function evaluate(farm, p, Ain) {
+    const A = Object.assign({}, ASSUME, Ain || {});
+    const wage = A.wage * A.costScale;
+    const combineCost = A.combineCostHa * A.costScale;
+    const drainCost = A.drainCostHa * A.costScale;
+    const V = farm.area * A.yieldKgHa * A.priceKg;
+    const mature = farm.maturity >= A.matureAt;
+    const L = (mature ? farm.lossFrac : A.immatureRainLoss) * V * A.lossScale;
+    const earlyPen = mature ? 0 : A.earlyHarvestPenalty * V;
+    const need = A.manualPH * farm.area;
+
+    // harvest modes
+    const tMach = farm.machineWait + A.combineHoursHa * farm.area;
+    const cMach = combineCost * farm.area;
+    const machOK = farm.machine && tMach <= farm.lead && farm.cash >= cMach;
+    const cMan = need * wage;
+    const manOK = farm.labour >= need;
+    const gap = need - farm.labour;
+    const hireCash = Math.max(0, gap) * wage * A.hireWagePremium;
+    const hireOK = gap > 0 && gap <= farm.hireable && farm.cash >= hireCash;
+    const cFull = Math.min(cMach, cMan); // nominal cost of a full harvest, ignoring feasibility
+
+    const list = [];
+    const add = (o) => {
+      o.name = ACTION_NAMES[o.id];
+      o.expLoss = p * o.resid + o.pen;
+      o.nb = p * L - o.expLoss - o.cost;
+      o.risk = o.resid + o.pen; // loss if the event occurs
+      const labShare = Math.min(1, o.lab / Math.max(1, farm.labour));
+      const cashShare = Math.min(1, o.cash / Math.max(1, farm.cash));
+      o.res = clamp(0.4 * labShare + 0.4 * cashShare + 0.2 * (o.mach ? 1 : 0), 0, 1);
+      list.push(o);
+    };
+
+    // 1. harvest now
+    {
+      let o;
+      if (machOK && (!manOK || cMach <= cMan)) {
+        o = { id: 'harvest', feasible: true, mode: 'combine', cost: cMach, lab: A.combineLabourHa * farm.area, cash: cMach, mach: true, resid: 0, pen: earlyPen };
+      } else if (manOK) {
+        o = { id: 'harvest', feasible: true, mode: 'manual', cost: cMan, lab: need, cash: 0, mach: false, resid: 0, pen: earlyPen };
+      } else {
+        const why = !farm.machine ? 'no combine available' : tMach > farm.lead ? 'combine arrives after the storm' : 'cash short for the combine';
+        o = { id: 'harvest', feasible: false, mode: 'none', cost: cFull, lab: need, cash: 0, mach: false, resid: 0, pen: earlyPen,
+              reason: why + '; labour short by ' + Math.round(Math.max(0, need - farm.labour)) + ' person-hours' };
+      }
+      add(o);
+    }
+    // 2. partial harvest
+    {
+      const f = clamp(farm.labour / need, 0, 1);
+      const ok = f >= 0.2 && f < 1;
+      add({ id: 'partial', feasible: ok, frac: f, cost: f * need * wage, lab: f * need, cash: 0, mach: false,
+            resid: (1 - f) * L, pen: f * earlyPen,
+            reason: ok ? '' : f >= 1 ? 'full harvest already possible' : 'labour covers under 20% of the field' });
+    }
+    // 3. hire labour
+    {
+      add({ id: 'hire', feasible: hireOK, cost: farm.labour * wage + hireCash, lab: need, cash: hireCash, mach: false,
+            resid: 0, pen: earlyPen,
+            reason: hireOK ? '' : gap <= 0 ? 'own labour already enough' : gap > farm.hireable ? 'not enough workers for hire' : 'cash short for hired labour' });
+    }
+    // 4. protect (drain + bunds)
+    {
+      const lab = A.drainPH * farm.area;
+      const cashNeed = drainCost * farm.area;
+      const ok = farm.labour >= lab && farm.cash >= cashNeed;
+      add({ id: 'protect', feasible: ok, cost: cashNeed + lab * wage, lab, cash: cashNeed, mach: false,
+            resid: L * (1 - A.drainReduction), pen: 0, reason: ok ? '' : 'labour or cash short' });
+    }
+    // 5. wait for a sharper forecast, then act on the signal
+    {
+      const tManual = need / (0.5 * Math.max(farm.crew, 0.1));
+      const tFull = mature ? Math.min(farm.machine ? tMach : Infinity, tManual) : 2;
+      const ok = farm.lead - tFull >= A.waitBuffer;
+      const follow = mature ? cFull : drainCost * farm.area + A.drainPH * farm.area * wage;
+      const actProb = p * A.waitHit + (1 - p) * A.waitFalseAlarm;
+      const resid = mature ? (1 - A.waitHit) * L : L * (1 - A.waitHit * A.drainReduction);
+      add({ id: 'wait', feasible: ok, cost: actProb * follow, lab: 0, cash: 0, mach: false, resid, pen: 0,
+            followCost: follow, mature,
+            reason: ok ? '' : 'too little time left to act after waiting' });
+    }
+    // 6. do nothing
+    add({ id: 'nothing', feasible: true, cost: 0, lab: 0, cash: 0, mach: false, resid: L, pen: 0 });
+
+    const byId = {};
+    list.forEach((a) => { byId[a.id] = a; });
+    return { farm, p, V, L, mature, need, cFull, list, byId, A };
+  }
+
+  /* ---------- ranking: Pareto filter, then weighted score ---------- */
+  function rank(ev, weights) {
+    const w = Object.assign({}, DEFAULT_WEIGHTS, weights || {});
+    const sum = w.benefit + w.resource + w.risk || 1;
+    const wb = w.benefit / sum, wr = w.resource / sum, wk = w.risk / sum;
+    const feas = ev.list.filter((a) => a.feasible);
+    const dominates = (b, a) => b.nb >= a.nb && b.res <= a.res && b.risk <= a.risk &&
+      (b.nb > a.nb || b.res < a.res || b.risk < a.risk);
+    feas.forEach((a) => { a.dominated = feas.some((b) => b !== a && dominates(b, a)); });
+    const front = feas.filter((a) => !a.dominated);
+    const rng = (key) => {
+      const v = front.map((a) => a[key]);
+      return [Math.min.apply(null, v), Math.max.apply(null, v)];
+    };
+    const norm = (x, [lo, hi]) => (hi - lo < 1e-9 ? 0.5 : (x - lo) / (hi - lo));
+    const rb = rng('nb'), rr = rng('res'), rk = rng('risk');
+    front.forEach((a) => {
+      a.score = wb * norm(a.nb, rb) + wr * (1 - norm(a.res, rr)) + wk * (1 - norm(a.risk, rk));
+    });
+    front.sort((a, b) => b.score - a.score);
+    const rest = feas.filter((a) => a.dominated).sort((a, b) => b.nb - a.nb);
+    const infeasible = ev.list.filter((a) => !a.feasible);
+    infeasible.forEach((a) => { a.dominated = false; a.score = null; });
+    return { ranked: front.concat(rest), infeasible, top: front[0] };
+  }
+
+  function verdict(ev, weights) {
+    const rk = rank(ev, weights);
+    const preferred = ev.list.slice().sort((a, b) => b.nb - a.nb)[0]; // best expected benefit, ignoring feasibility
+    let label;
+    if (!preferred.feasible && preferred.nb > 0) label = 'CANNOT ACT';
+    else if (rk.top.id === 'wait' || rk.top.id === 'nothing') label = 'WAIT';
+    else label = 'ACT';
+    return { label, preferred, top: rk.top, ranked: rk.ranked, infeasible: rk.infeasible };
+  }
+
+  /* ---------- outcome realised once the weather is known ---------- */
+  function realize(ev, act) {
+    const f = ev.farm, A = ev.A, e = f.event, L = ev.L;
+    if (act.id === 'wait') {
+      const signal = e ? f.u1 < A.waitHit : f.u2 < A.waitFalseAlarm;
+      if (!signal) return e ? L : 0;
+      const loss = act.mature ? 0 : (e ? L * (1 - A.drainReduction) : 0);
+      return loss + act.followCost;
+    }
+    if (act.feasible) return (e ? act.resid : 0) + act.pen + act.cost;
+    return (e ? L : 0) + A.failShare * act.cost;
+  }
+  function oracle(ev) {
+    const e = ev.farm.event;
+    return Math.min.apply(null, ev.list.filter((a) => a.feasible && a.id !== 'wait')
+      .map((a) => (e ? a.resid : 0) + a.pen + a.cost));
+  }
+
+  /* ---------- methods ---------- */
+  function pickGeneric(ev) { return ev.p >= ev.A.genericThreshold ? ev.byId.harvest : ev.byId.nothing; }
+  function pickCostLoss(ev) {
+    // nominal cost vs nominal loss; no crop stage, no feasibility
+    const Lnom = ev.farm.lossFrac * ev.V * ev.A.lossScale;
+    return ev.p > ev.cFull / Lnom ? ev.byId.harvest : ev.byId.nothing;
+  }
+
+  /* ---------- full simulation ---------- */
+  function simulate(n, seed, opts) {
+    opts = opts || {};
+    const A = Object.assign({}, ASSUME, opts.assume || {});
+    const weights = opts.weights || DEFAULT_WEIGHTS;
+    const r = mulberry32(seed >>> 0);
+    const farms = [];
+    for (let i = 0; i < n; i++) farms.push(genFarm(r, A, i + 1));
+
+    const M = { generic: [], costloss: [], aware: [], nothing: [], oracle: [] };
+    const counts = { ACT: 0, WAIT: 0, 'CANNOT ACT': 0 };
+    const feas = { generic: 0, costloss: 0, aware: 0 };
+    let cannot = 0, cannotAlt = 0, cannotNoAlt = 0;
+    const topDefault = [];
+    const evs = [];
+
+    farms.forEach((f) => {
+      const ev = evaluate(f, f.pF, A);
+      evs.push(ev);
+      const v = verdict(ev, weights);
+      counts[v.label]++;
+      topDefault.push(v.top.id);
+      if (v.label === 'CANNOT ACT') {
+        cannot++;
+        if (v.top.nb > 0) cannotAlt++; else cannotNoAlt++;
+      }
+      const g = pickGeneric(ev), c = pickCostLoss(ev), a = v.top;
+      if (g.feasible) feas.generic++;
+      if (c.feasible) feas.costloss++;
+      feas.aware++; // the ranked top action is always feasible
+      M.generic.push(realize(ev, g));
+      M.costloss.push(realize(ev, c));
+      M.aware.push(realize(ev, a));
+      M.nothing.push(realize(ev, ev.byId.nothing));
+      M.oracle.push(oracle(ev));
+    });
+
+    const sum = (x) => x.reduce((s, y) => s + y, 0);
+    const mean = (x) => sum(x) / (x.length || 1);
+    const base = sum(M.nothing), orc = sum(M.oracle);
+    const captured = (k) => (base - sum(M[k])) / Math.max(1, base - orc);
+    const viol = (k) => n - feas[k];
+
+    const methods = ['generic', 'costloss', 'aware'].map((k) => ({
+      key: k,
+      meanCost: mean(M[k]),
+      feasibility: feas[k] / n,
+      violations: viol(k),
+      captured: captured(k),
+    }));
+
+    // paired bootstrap: aware vs cost-loss and vs generic
+    function boot(a, b, seedOff) {
+      const rr = mulberry32((seed + seedOff) >>> 0);
+      const d = a.map((x, i) => x - b[i]);
+      const B = 1000, means = [];
+      for (let k = 0; k < B; k++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s += d[Math.floor(rr() * n)];
+        means.push(s / n);
+      }
+      means.sort((x, y) => x - y);
+      return { mean: mean(d), lo: means[Math.floor(0.025 * B)], hi: means[Math.floor(0.975 * B)],
+               pBetter: means.filter((m) => m > 0).length / B };
+    }
+    const bootCL = boot(M.costloss, M.aware, 7);
+    const bootGen = boot(M.generic, M.aware, 11);
+
+    // stability under changed weights and +/-20% cost or loss
+    const weightSets = [[.5,.2,.3],[.7,.1,.2],[.2,.5,.3],[.3,.2,.5],[.34,.33,.33],[.6,0,.4],[.4,.4,.2],[.2,.2,.6]];
+    let same = 0, total = 0;
+    weightSets.forEach((w) => {
+      evs.forEach((ev, i) => {
+        const t = verdict(ev, { benefit: w[0], resource: w[1], risk: w[2] }).top.id;
+        if (t === topDefault[i]) same++; total++;
+      });
+    });
+    const weightStability = same / total;
+    const perturb = [{ costScale: 0.8 }, { costScale: 1.2 }, { lossScale: 0.8 }, { lossScale: 1.2 }];
+    let same2 = 0, total2 = 0;
+    perturb.forEach((pt) => {
+      const A2 = Object.assign({}, A, pt);
+      farms.forEach((f, i) => {
+        const t = verdict(evaluate(f, f.pF, A2), weights).top.id;
+        if (t === topDefault[i]) same2++; total2++;
+      });
+    });
+    const paramStability = same2 / total2;
+    const stability = (weightStability * weightSets.length + paramStability * perturb.length) / (weightSets.length + perturb.length);
+
+    // calibration of the (synthetic) forecasts
+    const bins = [];
+    for (let b = 0; b < 10; b++) bins.push({ n: 0, p: 0, o: 0 });
+    let brier = 0;
+    farms.forEach((f) => {
+      const b = Math.min(9, Math.floor(f.pF * 10));
+      bins[b].n++; bins[b].p += f.pF; bins[b].o += f.event ? 1 : 0;
+      brier += Math.pow(f.pF - (f.event ? 1 : 0), 2);
+    });
+    brier /= n;
+    let ece = 0;
+    const reliability = bins.filter((b) => b.n > 0).map((b) => {
+      ece += (b.n / n) * Math.abs(b.p / b.n - b.o / b.n);
+      return { p: b.p / b.n, o: b.o / b.n, n: b.n };
+    });
+
+    const aware = methods[2];
+    const parts = {
+      value: clamp(aware.captured, 0, 1),
+      feasibility: aware.feasibility,
+      stability,
+      confidence: bootCL.pBetter,
+    };
+    const score = 100 * (0.35 * parts.value + 0.25 * parts.feasibility + 0.25 * parts.stability + 0.15 * parts.confidence);
+    const grade = score >= 80 ? 'High' : score >= 60 ? 'Moderate' : 'Low';
+
+    return {
+      n, seed, weights, methods, counts, cannot, cannotAlt, cannotNoAlt,
+      altRate: cannot ? cannotAlt / cannot : null,
+      bootCL, bootGen, weightStability, paramStability, stability,
+      calibration: { brier, ece, reliability },
+      parts, score, grade, baseCost: mean(M.nothing), oracleCost: mean(M.oracle),
+    };
+  }
+
+  /* ---------- unit tests ---------- */
+  function runTests() {
+    const out = [];
+    const t = (name, ok, detail) => out.push({ name, ok: !!ok, detail: detail || '' });
+    const near = (a, b) => Math.abs(a - b) < 1e-9;
+
+    let r = costLossNet(1, 8000, 2000);
+    t('Concept note: avoided loss 8,000 and cost 2,000 give nominal net 6,000', near(r.net, 6000), 'net = ' + r.net);
+    r = costLossNet(0.3, 5000, 1000);
+    t('Concept note: p = 30%, L = 5,000, C = 1,000 gives expected avoided 1,500 and net 500', near(r.expectedAvoided, 1500) && near(r.net, 500), 'avoided = ' + r.expectedAvoided + ', net = ' + r.net);
+    r = costLossNet(0.1, 5000, 1000);
+    t('Concept note: p = 10% gives expected avoided 500, below the 1,000 cost', near(r.expectedAvoided, 500) && r.net < 0, 'net = ' + r.net);
+
+    const mk = (o) => Object.assign({ id: 0, area: 1, lead: 48, crew: 0, labour: 0, hireable: 0, machine: false, machineWait: 30,
+      cash: 20000, maturity: 0.95, lossFrac: 0.2, pF: 0.6, pT: 0.6, event: true, u1: 0.5, u2: 0.5 }, o);
+
+    let ev = evaluate(mk({}), 0.6);
+    let v = verdict(ev);
+    t('No workers and no machine: harvest is infeasible and the verdict is CANNOT ACT', !ev.byId.harvest.feasible && v.label === 'CANNOT ACT', 'verdict = ' + v.label);
+    t('Infeasible action is never ranked first', v.top.feasible && v.ranked.every((a) => a.feasible));
+
+    ev = evaluate(mk({ crew: 3, labour: 150, machine: true, machineWait: 8 }), 0.7);
+    v = verdict(ev);
+    t('Labour and machine available with high rain risk: ACT on a harvest option', v.label === 'ACT' && /harvest|hire/.test(v.top.id), 'top = ' + v.top.id);
+
+    ev = evaluate(mk({ crew: 3, labour: 150, machine: true, machineWait: 8, maturity: 0.7 }), 0.7);
+    t('Immature crop: harvesting now has negative expected benefit', ev.byId.harvest.nb < 0, 'net = ' + Math.round(ev.byId.harvest.nb));
+
+    ev = evaluate(mk({ crew: 1, labour: 40, machine: false }), 0.6);
+    t('Short on labour: partial harvest is offered as an alternative', ev.byId.partial.feasible && ev.byId.partial.frac > 0.2 && ev.byId.partial.frac < 1, 'fraction = ' + ev.byId.partial.frac.toFixed(2));
+
+    const a = simulate(200, 5), b = simulate(200, 5);
+    t('Same seed gives identical results (reproducible)', a.score === b.score && a.methods[2].meanCost === b.methods[2].meanCost);
+
+    const s = simulate(400, 9);
+    t('Resource-aware method has zero constraint violations', s.methods[2].violations === 0, 'violations = ' + s.methods[2].violations);
+    return out;
+  }
+
+  const API = { ASSUME, ACTION_NAMES, DEFAULT_WEIGHTS, genFarm, evaluate, rank, verdict, simulate, runTests, costLossNet, mulberry32 };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  else root.AdvisoryEngine = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+  var E = window.AdvisoryEngine;
+  var $ = function (id) { return document.getElementById(id); };
+  var inr = function (n) { return (n < 0 ? '-' : '') + '₹' + Math.abs(Math.round(n)).toLocaleString('en-IN'); };
+  var pct = function (x, d) { return (x * 100).toFixed(d || 0) + '%'; };
+  var NAMES = { generic: 'Generic advisory', costloss: 'Cost-loss rule', aware: 'Resource-aware ranking' };
+  var last = null;
+
+  function weights() {
+    return { benefit: +$('wB').value, resource: +$('wR').value, risk: +$('wK').value };
+  }
+  function showWeights() {
+    var w = weights(), s = (w.benefit + w.resource + w.risk) || 1;
+    $('wBv').textContent = pct(w.benefit / s); $('wRv').textContent = pct(w.resource / s); $('wKv').textContent = pct(w.risk / s);
+  }
+
+  function renderScore(s) {
+    $('score').textContent = s.score.toFixed(0);
+    var g = $('grade'); g.textContent = s.grade + ' reliability';
+    g.className = 'grade' + (s.grade === 'Moderate' ? ' mid' : s.grade === 'Low' ? ' low' : '');
+    $('scoreNote').textContent = 'Measured on ' + s.n.toLocaleString('en-IN') + ' synthetic farms under the stated assumptions. It is not a field validation.';
+    var items = [
+      ['Saving captured', s.parts.value, '35%', 'Share of the best achievable saving, judged with hindsight, that the method delivers.'],
+      ['Feasible recommendations', s.parts.feasibility, '25%', 'Share of recommendations the farm can actually carry out in time.'],
+      ['Stability', s.parts.stability, '25%', 'Share of top choices that stay the same when weights shift or costs and losses move by 20%.'],
+      ['Statistical confidence', s.parts.confidence, '15%', 'Share of 1,000 bootstrap resamples where it beats the cost-loss rule.']
+    ];
+    $('parts').innerHTML = items.map(function (it) {
+      return '<div class="part"><div class="top"><span>' + it[0] + ' <span class="muted small">weight ' + it[2] + '</span></span><span>' + pct(it[1]) + '</span></div>' +
+        '<div class="track"><i style="width:' + (it[1] * 100) + '%"></i></div><div class="why">' + it[3] + '</div></div>';
+    }).join('');
+    var b = s.bootCL;
+    $('headline').textContent = 'Against the cost-loss rule, the resource-aware method lowers cost by ' + inr(b.mean) + ' per farm (95% interval ' + inr(b.lo) + ' to ' + inr(b.hi) + ').';
+  }
+
+  function renderCompare(s) {
+    var rows = [
+      { k: 'nothing', n: 'Do nothing', v: s.baseCost, c: 'ref' },
+      { k: 'generic', n: NAMES.generic, v: s.methods[0].meanCost, c: 'lose' },
+      { k: 'costloss', n: NAMES.costloss, v: s.methods[1].meanCost, c: 'lose' },
+      { k: 'aware', n: NAMES.aware, v: s.methods[2].meanCost, c: 'win' },
+      { k: 'oracle', n: 'Best feasible with hindsight', v: s.oracleCost, c: 'ref' }
+    ];
+    var mx = Math.max.apply(null, rows.map(function (r) { return r.v; })) || 1;
+    $('costBars').innerHTML = rows.map(function (r) {
+      return '<div class="bar ' + r.c + '"><div class="top"><span>' + r.n + '</span><span class="mono">' + inr(r.v) + '</span></div><div class="track"><i style="width:' + (r.v / mx * 100) + '%"></i></div></div>';
+    }).join('');
+    var best = s.methods.reduce(function (a, m) { return m.meanCost < a.meanCost ? m : a; });
+    $('cmpTable').innerHTML = '<thead><tr><th>Method</th><th class="num">Feasible</th><th class="num">Violations</th><th class="num">Saving captured</th></tr></thead><tbody>' +
+      s.methods.map(function (m) {
+        return '<tr class="' + (m === best ? 'best' : '') + '"><td>' + NAMES[m.key] + '</td><td class="num">' + pct(m.feasibility, 1) + '</td><td class="num">' + m.violations + '</td><td class="num">' + pct(m.captured) + '</td></tr>';
+      }).join('') + '</tbody>';
+    $('cmpNote').textContent = 'A violation is a recommendation that needs labour, a machine, cash or time the farm does not have. A negative saving means the method did worse than doing nothing, usually because it asked for an action the farm could not complete or harvested a crop that was not ready.';
+  }
+
+  function renderVerdicts(s) {
+    var tot = s.counts.ACT + s.counts.WAIT + s.counts['CANNOT ACT'];
+    var parts = [['ACT', 'var(--accent)'], ['WAIT', 'var(--warn)'], ['CANNOT ACT', 'var(--bad)']];
+    $('stack').innerHTML = parts.map(function (p) { return '<i style="width:' + (s.counts[p[0]] / tot * 100) + '%;background:' + p[1] + '"></i>'; }).join('');
+    $('legend').innerHTML = parts.map(function (p) { return '<span style="--c:' + p[1] + '">' + p[0] + ' ' + pct(s.counts[p[0]] / tot, 1) + '</span>'; }).join('');
+    $('altText').textContent = s.cannot
+      ? 'In ' + s.cannot + ' CANNOT ACT cases, ' + s.cannotAlt + ' (' + pct(s.altRate) + ') had a feasible alternative with positive expected benefit. The other ' + s.cannotNoAlt + ' had no beneficial alternative within their limits.'
+      : 'No CANNOT ACT cases in this run.';
+  }
+
+  function renderCalib(s) {
+    var W = 300, H = 300, m = 34, sc = function (v) { return m + v * (W - m - 12); }, sy = function (v) { return H - m - v * (H - m - 12); };
+    var r = s.calibration.reliability;
+    var pts = r.map(function (b) { return sc(b.p) + ',' + sy(b.o); }).join(' ');
+    var dots = r.map(function (b) { return '<circle class="pt" cx="' + sc(b.p) + '" cy="' + sy(b.o) + '" r="' + (3 + Math.min(6, Math.sqrt(b.n) / 3)) + '"/>'; }).join('');
+    var ticks = [0, .25, .5, .75, 1].map(function (v) {
+      return '<text class="tx" x="' + sc(v) + '" y="' + (H - m + 14) + '" text-anchor="middle">' + v * 100 + '</text><text class="tx" x="' + (m - 6) + '" y="' + (sy(v) + 3) + '" text-anchor="end">' + v * 100 + '</text>';
+    }).join('');
+    $('calib').innerHTML = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Reliability diagram">' +
+      '<path class="ax" d="M' + m + ' ' + sy(0) + ' H' + sc(1) + ' M' + m + ' ' + sy(0) + ' V' + sy(1) + '"/>' +
+      '<line class="dg" x1="' + sc(0) + '" y1="' + sy(0) + '" x2="' + sc(1) + '" y2="' + sy(1) + '"/>' +
+      '<polyline class="ln" points="' + pts + '"/>' + dots + ticks +
+      '<text class="tx" x="' + sc(.5) + '" y="' + (H - 4) + '" text-anchor="middle">forecast probability (%)</text>' +
+      '<text class="tx" transform="translate(10 ' + sy(.5) + ') rotate(-90)" text-anchor="middle">observed frequency (%)</text></svg>';
+    $('calibNums').textContent = 'Brier score ' + s.calibration.brier.toFixed(3) + '   Calibration error ' + s.calibration.ece.toFixed(3);
+  }
+
+  function renderJson(s) {
+    var out = {
+      farms: s.n, seed: s.seed, reliability_score: +s.score.toFixed(1), grade: s.grade,
+      components: { saving_captured: +s.parts.value.toFixed(3), feasibility: +s.parts.feasibility.toFixed(3), stability: +s.parts.stability.toFixed(3), statistical_confidence: +s.parts.confidence.toFixed(3) },
+      mean_cost_per_farm_inr: { do_nothing: Math.round(s.baseCost), generic: Math.round(s.methods[0].meanCost), cost_loss: Math.round(s.methods[1].meanCost), resource_aware: Math.round(s.methods[2].meanCost), oracle: Math.round(s.oracleCost) },
+      violations: { generic: s.methods[0].violations, cost_loss: s.methods[1].violations, resource_aware: s.methods[2].violations },
+      verdicts: s.counts,
+      improvement_vs_cost_loss_inr: { mean: Math.round(s.bootCL.mean), ci95: [Math.round(s.bootCL.lo), Math.round(s.bootCL.hi)] },
+      calibration: { brier: +s.calibration.brier.toFixed(4), ece: +s.calibration.ece.toFixed(4) },
+      note: 'Synthetic farms and forecasts. Scenario-based evaluation, not field validation.'
+    };
+    $('json').textContent = JSON.stringify(out, null, 2);
+  }
+
+  function run() {
+    var n = +$('nFarms').value, seed = Math.max(1, Math.floor(+$('seed').value || 42));
+    last = E.simulate(n, seed, { weights: weights() });
+    renderScore(last); renderCompare(last); renderVerdicts(last); renderCalib(last); renderJson(last);
+  }
+
+  /* explorer */
+  var FIELDS = [
+    ['p', 'Rain probability (%)', 0, 95, 1, 60],
+    ['lead', 'Hours until the rain', 24, 96, 1, 36],
+    ['crew', 'Workers in the family crew', 0, 5, 1, 1],
+    ['hireable', 'Hours of labour for hire', 0, 300, 5, 20],
+    ['cash', 'Cash in hand (₹)', 1500, 60000, 500, 15000],
+    ['area', 'Field area (ha)', 0.3, 3, 0.1, 1],
+    ['maturity', 'Crop maturity index', 0.6, 1, 0.01, 0.95],
+    ['wait', 'Hours until a combine can arrive', 6, 60, 1, 30]
+  ];
+  var PRESETS = {
+    'Farmer A: can harvest today': { p: 60, lead: 72, crew: 5, hireable: 50, cash: 20000, area: 1, maturity: 0.95, wait: 10, machine: true },
+    'Farmer B: needs a machine': { p: 60, lead: 60, crew: 1, hireable: 20, cash: 15000, area: 1, maturity: 0.95, wait: 20, machine: true },
+    'Farmer C: cannot finish before the storm': { p: 60, lead: 30, crew: 1, hireable: 20, cash: 8000, area: 1, maturity: 0.95, wait: 30, machine: false },
+    'Immature crop': { p: 60, lead: 60, crew: 3, hireable: 50, cash: 20000, area: 1, maturity: 0.72, wait: 10, machine: true }
+  };
+  function buildSliders() {
+    $('sliders').innerHTML = FIELDS.map(function (f) {
+      return '<div class="field"><label for="x_' + f[0] + '">' + f[1] + ' <b id="xv_' + f[0] + '"></b></label><input id="x_' + f[0] + '" type="range" min="' + f[2] + '" max="' + f[3] + '" step="' + f[4] + '" value="' + f[5] + '"></div>';
+    }).join('') + '<label class="check" for="x_machine"><input id="x_machine" type="checkbox"> A combine is available for hire</label>';
+    $('presets').innerHTML = Object.keys(PRESETS).map(function (k) { return '<button class="ghost" type="button" data-k="' + k + '">' + k + '</button>'; }).join('');
+    FIELDS.forEach(function (f) { $('x_' + f[0]).addEventListener('input', explore); });
+    $('x_machine').addEventListener('change', explore);
+    $('presets').addEventListener('click', function (e) {
+      var k = e.target && e.target.getAttribute('data-k'); if (!k) return;
+      var p = PRESETS[k];
+      FIELDS.forEach(function (f) { $('x_' + f[0]).value = p[f[0]]; });
+      $('x_machine').checked = p.machine; explore();
+    });
+    $('x_machine').checked = false;
+  }
+  function explore() {
+    var v = {};
+    FIELDS.forEach(function (f) { v[f[0]] = +$('x_' + f[0]).value; });
+    FIELDS.forEach(function (f) {
+      var x = v[f[0]];
+      $('xv_' + f[0]).textContent = f[0] === 'cash' ? inr(x) : f[0] === 'maturity' ? x.toFixed(2) : f[0] === 'area' ? x.toFixed(1) : x;
+    });
+    var farm = { id: 0, area: v.area, lead: v.lead, crew: v.crew, labour: v.crew * v.lead * 0.5 * 0.8, hireable: v.hireable,
+      machine: $('x_machine').checked, machineWait: v.wait, cash: v.cash, maturity: v.maturity, lossFrac: 0.2, pF: v.p / 100, pT: v.p / 100, event: true, u1: .5, u2: .5 };
+    var ev = E.evaluate(farm, v.p / 100), vd = E.verdict(ev, weights());
+    var cls = vd.label === 'CANNOT ACT' ? 'CANNOT' : vd.label;
+    var line = vd.label === 'CANNOT ACT'
+      ? 'Preferred action: ' + vd.preferred.name + ' is not possible (' + (vd.preferred.reason || 'constraint') + '). Best feasible fallback: ' + vd.top.name + '.'
+      : vd.label === 'WAIT' ? 'Best choice: ' + vd.top.name + '.' : 'Best choice: ' + vd.top.name + '.';
+    $('verdict').innerHTML = '<span class="v ' + cls + '">' + vd.label + '</span><span class="small" style="flex:1 1 220px;min-width:0">' + line + '</span>';
+    var rows = vd.ranked.map(function (a, i) {
+      return '<tr class="' + (i === 0 ? 'best' : '') + '"><td class="num">' + (i + 1) + '</td><td>' + a.name + (a.mode && a.mode !== 'none' ? ' <span class="muted small">(' + a.mode + ')</span>' : '') + (a.id === 'partial' ? ' <span class="muted small">(' + pct(a.frac) + ' of field)</span>' : '') +
+        '</td><td><span class="pill ' + (a.dominated ? 'dom' : 'ok') + '">' + (a.dominated ? 'Feasible, dominated' : 'Feasible') + '</span></td><td class="num">' + inr(a.nb) + '</td><td class="num">' + pct(a.res) + '</td><td class="num">' + inr(a.risk) + '</td><td class="num">' + (a.score == null ? '-' : a.score.toFixed(2)) + '</td></tr>';
+    }).join('') + vd.infeasible.map(function (a) {
+      return '<tr><td class="num">-</td><td>' + a.name + '</td><td><span class="pill no">Infeasible</span> <span class="muted small">' + (a.reason || '') + '</span></td><td class="num">' + inr(a.nb) + '</td><td class="num">-</td><td class="num">' + inr(a.risk) + '</td><td class="num">-</td></tr>';
+    }).join('');
+    $('actTable').innerHTML = '<thead><tr><th class="num">Rank</th><th>Action</th><th>Status</th><th class="num">Net benefit</th><th class="num">Resource load</th><th class="num">Risk</th><th class="num">Score</th></tr></thead><tbody>' + rows + '</tbody>';
+  }
+
+  function renderTests() {
+    var t = E.runTests();
+    $('tests').innerHTML = t.map(function (x) {
+      return '<li><span class="pill ' + (x.ok ? 'ok' : 'no') + '">' + (x.ok ? 'Pass' : 'Fail') + '</span><span>' + x.name + (x.detail ? ' <span class="muted mono small">' + x.detail + '</span>' : '') + '</span></li>';
+    }).join('');
+  }
+  function renderAssume() {
+    var L = { wage: 'Wage per person-hour (₹)', hireWagePremium: 'Short-notice hire premium', manualPH: 'Manual harvest, person-hours per ha', combineCostHa: 'Combine hire per ha (₹)', combineHoursHa: 'Combine hours per ha',
+      yieldKgHa: 'Paddy yield (kg per ha)', priceKg: 'Paddy price (₹ per kg)', matureAt: 'Maturity index for valid harvest', earlyHarvestPenalty: 'Value lost if harvested immature', immatureRainLoss: 'Rain loss on immature crop',
+      drainReduction: 'Rain loss avoided by drainage', waitBuffer: 'Hours kept after waiting', waitHit: 'Sharper forecast hit rate', waitFalseAlarm: 'Sharper forecast false alarm rate', failShare: 'Cost wasted on a failed attempt', genericThreshold: 'Generic warning threshold' };
+    $('assume').innerHTML = '<tbody>' + Object.keys(L).map(function (k) { return '<tr><td>' + L[k] + '</td><td class="num">' + E.ASSUME[k] + '</td></tr>'; }).join('') + '</tbody>';
+  }
+
+  ['wB', 'wR', 'wK'].forEach(function (id) { $(id).addEventListener('input', function () { showWeights(); explore(); }); });
+  $('run').addEventListener('click', run);
+  $('copyJson').addEventListener('click', function () {
+    var txt = $('json').textContent;
+    var done = function (m) { $('copyMsg').textContent = m; };
+    try {
+      navigator.clipboard.writeText(txt).then(function () { done('Copied.'); }, function () { sel(); });
+    } catch (e) { sel(); }
+    function sel() {
+      var r = document.createRange(); r.selectNodeContents($('json'));
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done('Selected. Press copy.');
+    }
+  });
+
+  showWeights(); buildSliders(); renderAssume(); renderTests(); run();
+  $('presets').querySelector('[data-k^="Farmer C"]').click();
+})();
+</script>
